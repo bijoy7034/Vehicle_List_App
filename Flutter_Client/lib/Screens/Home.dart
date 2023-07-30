@@ -2,8 +2,35 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
+
+
+class Vehicle {
+  final String name;
+  final String model;
+  final double fuelEfficiency;
+  final int age;
+
+  Vehicle({
+    required this.name,
+    required this.model,
+    required this.fuelEfficiency,
+    required this.age,
+  });
+
+  factory Vehicle.fromMap(Map<String, dynamic> map) {
+    return Vehicle(
+      name: map['name'] as String,
+      model: map['model'] as String,
+      fuelEfficiency: map['fuelEfficiency'].toDouble(),
+      age: map['age'].toInt(),
+    );
+  }
+}
+
+enum ColorCriteria { green, amber, red }
+
 class Home extends StatefulWidget {
-  const Home({super.key});
+  const Home({Key? key}) : super(key: key);
 
   @override
   State<Home> createState() => _HomeState();
@@ -13,20 +40,18 @@ class _HomeState extends State<Home> {
   List<Vehicle> _vehicles = [];
   bool _isLoading = true;
 
+  final Map<ColorCriteria, Color> colorMap = {
+    ColorCriteria.green: Colors.green.shade200,
+    ColorCriteria.amber: Colors.amber.shade200,
+    ColorCriteria.red: Colors.red.shade200,
+  };
+
   Future<void> _fetchVehicles() async {
-    final response =
-        await http.get(Uri.parse('http://localhost:4500/api/vehicles/'));
+    final response = await http.get(Uri.parse('http://localhost:4500/api/vehicles/'));
     if (response.statusCode == 200) {
       final List<dynamic> data = json.decode(response.body);
       setState(() {
-        _vehicles = data
-            .map((item) => Vehicle(
-                  name: item['name'] as String,
-                  model: item['model'] as String,
-                  fuelEfficiency: item['fuelEfficiency'].toDouble(),
-                  age: item['age'].toInt(),
-                ))
-            .toList();
+        _vehicles = data.map((item) => Vehicle.fromMap(item)).toList();
         _isLoading = false;
       });
     } else {
@@ -47,12 +72,42 @@ class _HomeState extends State<Home> {
 
   Color getColorForVehicle(Vehicle vehicle) {
     if (vehicle.fuelEfficiency >= 15.0 && vehicle.age <= 5) {
-      return Colors.green.shade200;
+      return colorMap[ColorCriteria.green]!;
     } else if (vehicle.fuelEfficiency >= 15.0) {
-      return Colors.amber.shade200;
+      return colorMap[ColorCriteria.amber]!;
     } else {
-      return Colors.red.shade200;
+      return colorMap[ColorCriteria.red]!;
     }
+  }
+
+  Widget buildVehicleTile(Vehicle vehicle) {
+    final tileColor = getColorForVehicle(vehicle);
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Container(
+        decoration: BoxDecoration(
+          color: tileColor,
+          borderRadius: BorderRadius.circular(10.0),
+        ),
+        child: ListTile(
+          title: Text(
+            vehicle.name,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Quicksand',
+              fontSize: 17,
+            ),
+          ),
+          subtitle: Text(
+            '${vehicle.model} - ${vehicle.fuelEfficiency} km/l - ${vehicle.age} years old',
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Quicksand',
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   void _showBottomPopup() {
@@ -78,7 +133,7 @@ class _HomeState extends State<Home> {
               SizedBox(height: 16),
               Row(
                 children: [
-                  Icon(Icons.circle, color: Colors.green.shade200,),
+                  Icon(Icons.circle, color: colorMap[ColorCriteria.green],),
                   SizedBox(width: 10,),
                   Text('Fuel efficient and low pollutant', style: TextStyle(fontFamily: 'Quicksand', fontWeight: FontWeight.bold),)
                 ],
@@ -86,7 +141,7 @@ class _HomeState extends State<Home> {
               SizedBox(height: 16),
               Row(
                 children: [
-                  Icon(Icons.circle, color: Colors.amber.shade200,),
+                  Icon(Icons.circle, color: colorMap[ColorCriteria.amber],),
                   SizedBox(width: 10,),
                   Text('Fuel efficient and moderately pollutant', style: TextStyle(fontFamily: 'Quicksand', fontWeight: FontWeight.bold),)
                 ],
@@ -94,7 +149,7 @@ class _HomeState extends State<Home> {
               SizedBox(height: 16),
               Row(
                 children: [
-                  Icon(Icons.circle, color: Colors.red.shade200,),
+                  Icon(Icons.circle, color: colorMap[ColorCriteria.red],),
                   SizedBox(width: 10,),
                   Text('High fuel consumption and  pollutant', style: TextStyle(fontFamily: 'Quicksand', fontWeight: FontWeight.bold),)
                 ],
@@ -144,66 +199,40 @@ class _HomeState extends State<Home> {
               SizedBox(height: 10,),
               Expanded(
                 child: Container(
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.only(
-                            topLeft: Radius.circular(50.0),
-                            topRight: Radius.circular(50.0),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(50.0),
+                      topRight: Radius.circular(50.0),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(left: 28.0 , right: 28.0),
+                      ),
+                      const SizedBox(
+                        height: 25,
+                      ),
+                      Expanded(
+                        child:  _isLoading
+                            ? const Center(
+                          child: CircularProgressIndicator( color: Colors.blueAccent,),
+                        )
+                            : Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: ListView.builder(
+                            itemCount: _vehicles.length,
+                            itemBuilder: (context, index) {
+                              final vehicle = _vehicles[index];
+                              return buildVehicleTile(vehicle);
+                            },
                           ),
                         ),
-                        child: Column(
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.only(left: 28.0 , right: 28.0),
-
-                            ),
-                            const SizedBox(
-                              height: 25,
-                            ),
-                            Expanded(
-                              child:  _isLoading
-                                  ? const Center(
-                                child: CircularProgressIndicator( color: Colors.blueAccent,),
-                              )
-                                  : Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: ListView.builder(
-                                  itemCount: _vehicles.length,
-                                  itemBuilder: (context, index) {
-                                    final vehicle = _vehicles[index];
-                                    final tileColor = getColorForVehicle(vehicle);
-                                    return Padding(
-                                      padding: const EdgeInsets.all(8.0),
-                                      child: Container(
-                                        decoration: BoxDecoration(
-                                          color: tileColor,
-                                          borderRadius: BorderRadius.circular(
-                                              10.0), // Set the border radius value
-                                        ),
-                                        child: ListTile(
-                                          title: Text(
-                                            vehicle.name,
-                                            style: const TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontFamily: 'Quicksand',
-                                                fontSize: 17),
-                                          ),
-                                          subtitle: Text(
-                                            '${vehicle.model} - ${vehicle.fuelEfficiency} km/l - ${vehicle.age} years old',
-                                            style: const TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontFamily: 'Quicksand'),
-                                          ),
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
                       ),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
@@ -213,16 +242,3 @@ class _HomeState extends State<Home> {
   }
 }
 
-class Vehicle {
-  final String name;
-  final String model;
-  final double fuelEfficiency;
-  final int age;
-
-  Vehicle({
-    required this.name,
-    required this.model,
-    required this.fuelEfficiency,
-    required this.age,
-  });
-}
